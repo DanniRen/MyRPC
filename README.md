@@ -370,7 +370,7 @@ userService2还没有被依赖注入。
 - 使用NIO方式进行网络传输
 - 实现长连接和长度前置协议
 
-## 更新
+## 更新内容
 ### 服务端
 ```java
 public void start(int port) throws IOException, ClassNotFoundException {
@@ -725,7 +725,7 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<RPCRequest> 
 }
 ```
 
-#:5.版本5
+# 5.版本5
 ## 要解决的问题
 - 实现自定义的消息序列化机制
 
@@ -733,11 +733,11 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<RPCRequest> 
 之前的版本中使用的都是java自带的序列化机制，并且在服务端进行编码解码时，用的也是netty自带的入站和出站编解码器，消息格式为**消息长度 | 序列化后的数据**。
 接下来要自己设置消息协议和格式并编写自定义的编解码器。
 
-自定义的消息格式如表所示
+自定义的消息格式如表所示：
 
-| 消息类型（2Byte）| 序列化方式（2Byte）| 消息长度（4Byte）| 序列化后的数据|
-| :---------------- | ---------------- | ---------------- |
-| messageType（RPCRequest和RPCResponse）| json or java | 消息长度length| 用不同序列化器序列化后的数据|
+| 消息类型（2Byte） | 序列化方式（2Byte） | 消息长度（4Byte） | 序列化后的数据 |
+|-------------------|---------------------|-------------------|----------------|
+| messageType（RPCRequest和RPCResponse） | json or java | 消息长度length | 用不同序列化器序列化后的数据 |
 
 ## 更新内容
 定义一个序列化器，里面有serialize和deserialize两个函数，并且实现jdk原生序列化机制和json序列化机制；由于json对象会丢失
@@ -1147,6 +1147,69 @@ public class NettyRPCClient implements RPCClient {
 
 ## 更新内容
 
+定义一个loadBalance接口，可以实现不同策略：随机负载均衡、轮询负载均衡等等
 
+loadBalance类：
+```java
+public interface LoadBalance {
+    Instance Select(List<Instance> instanceList);
+}
+```
+
+随机负载均衡策略的类实现：
+```java
+public class RandomLoadBalance implements LoadBalance {
+    @Override
+    public Instance Select(List<Instance> instanceList) {
+        Random random = new Random();
+        int index = random.nextInt(instanceList.size());
+        System.out.println("随机负载均衡选择了第" + index + "个服务实例!");
+        return instanceList.get(index);
+    }
+}
+```
+
+轮询负载均衡的类实现：
+```java
+public class RoundLoadBalance implements LoadBalance {
+    private int chosenIndex = -1;
+    @Override
+    public Instance Select(List<Instance> instanceList) {
+        chosenIndex = (chosenIndex + 1) % instanceList.size();
+        return instanceList.get(chosenIndex);
+    }
+}
+```
+
+客户端发现服务：
+```java
+public InetSocketAddress serviceDiscovery(String serviceName) {
+    try {
+        List<Instance> instanceList = naming.getAllInstances(serviceName);
+        Instance instance = loadBalancer.Select(instanceList);
+        return new InetSocketAddress(instance.getIp(), instance.getPort());
+    } catch (NacosException e) {
+        e.printStackTrace();
+        System.out.println("没有" + serviceName + "服务的实例！");
+    }
+    return null;
+}
+```
+
+服务端要启动多个实例，可以采用命令行参数的方式实现，相应配置如图所示:
+
+![img.png](img.png)
+
+服务端的port要从命令行参数中进行读取：
+```java
+@Autowired
+public NettyRPCServer7(@Value("${rpc.server.port}") int port){
+    this.port = port;
+    this.serviceProvider = new ServiceProvider("localhost", this.port);
+}
+```
+
+## 总结
+这一版本实现了两种负载均衡策略：随机负载均衡和轮询负载均衡，以缓解服务端的压力。
 
 
