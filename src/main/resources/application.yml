@@ -1,0 +1,18 @@
+# DataSource Config
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
+    url: jdbc:mysql://localhost:3306/hmdp?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+  jpa:
+    hibernate:
+      ddl-auto: update  # 自动更新数据库结构，开发时用，生产环境慎用
+    show-sql: true       # 是否打印SQL语句，方便调试
+    properties:
+      hibernate:
+        format_sql: true # 格式化SQL输出
+
+rpc:
+  server:
+    port:8080
